@@ -1,0 +1,27 @@
+{
+  "name": "lavadero-piedra-3d",
+  "version": "1.0.0",
+  "description": "Lavadero de piedra param\u00e9trico, GLB y visor 3D sin conexi\u00f3n",
+  "scripts": {
+    "model": "python src/generate_model.py",
+    "preview:build": "node src/build_preview.mjs",
+    "build": "npm run model && npm run preview:build",
+    "test:geometry": "python tests/validate_model.py",
+    "test:gltf": "node tests/validate_glb.mjs",
+    "test:viewer": "node tests/preview_test.mjs",
+    "test": "npm run test:geometry && npm run test:gltf && npm run test:viewer"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "esbuild": "0.25.10",
+    "gltf-validator": "2.0.0-dev.3.10",
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  },
+  "private": true
+}

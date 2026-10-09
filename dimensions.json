@@ -1,0 +1,10 @@
+{
+  "width": 0.9, "depth": 0.55, "height": 0.18,
+  "basin_width": 0.56, "basin_depth": 0.31,
+  "floor_width": 0.45, "floor_depth": 0.20,
+  "basin_center_x": 0.035, "basin_center_z": -0.012,
+  "basin_drop": 0.12, "floor_fall": 0.006,
+  "drain_diameter": 0.045, "drain_x": -0.11, "drain_z": 0.0,
+  "edge_bevel": 0.0015, "texture_tile_m": 0.30,
+  "texture_size": 1024, "seed": 9021, "radial_segments": 128
+}

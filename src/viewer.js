@@ -1,0 +1,76 @@
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const viewport=document.querySelector('#viewport');
+const status=document.querySelector('#status');
+const canvas=document.querySelector('canvas');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,preserveDrawingBuffer:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=.9;
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(34,1,.01,30);
+const controls=new OrbitControls(camera,canvas);
+controls.enableDamping=true;
+controls.minDistance=.65;controls.maxDistance=3.5;
+controls.maxPolarAngle=Math.PI*.95;
+controls.target.set(0,-.005,0);
+controls.autoRotateSpeed=.65;
+const environment=new RoomEnvironment();
+const pmrem=new THREE.PMREMGenerator(renderer);
+scene.environment=pmrem.fromScene(environment,.06).texture;
+environment.dispose();pmrem.dispose();
+scene.environmentIntensity=.35;
+const key=new THREE.DirectionalLight(0xfffaf1,1.6);
+key.position.set(-1.3,2,1.6);
+key.castShadow=true;
+key.shadow.mapSize.set(2048,2048);
+key.shadow.camera.left=-.9;key.shadow.camera.right=.9;
+key.shadow.camera.top=.9;key.shadow.camera.bottom=-.9;
+key.shadow.camera.near=.1;key.shadow.camera.far=5;
+key.shadow.normalBias=.0005;key.shadow.bias=-.00006;
+key.shadow.radius=4;
+scene.add(key);
+const fill=new THREE.DirectionalLight(0xe8eeff,.5);fill.position.set(1,1,-.6);scene.add(fill);
+scene.add(new THREE.HemisphereLight(0xffffff,0xb3aaa0,.35));
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.ShadowMaterial({opacity:.13}));
+ground.rotation.x=-Math.PI/2;ground.position.y=-.092;ground.receiveShadow=true;scene.add(ground);
+let model,solidMaterials=[],wire=false,dimensionsVisible=false;
+const dims=new THREE.Group();scene.add(dims);dims.visible=false;
+function line(a,b){const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...a),new THREE.Vector3(...b)]);dims.add(new THREE.Line(g,new THREE.LineBasicMaterial({color:0x8b6b43,depthTest:false})));}
+line([-.45,-.087,.335],[.45,-.087,.335]);line([.515,-.087,-.275],[.515,-.087,.275]);line([-.50,-.09,.275],[-.50,.09,.275]);
+for(const x of [-.45,.45])line([x,-.087,.325],[x,-.087,.345]);
+for(const z of [-.275,.275])line([.505,-.087,z],[.525,-.087,z]);
+for(const y of [-.09,.09])line([-.51,y,.275],[-.49,y,.275]);
+function frame(which='perspective'){
+ const views={perspective:[-.95,1.05,1.25],top:[0,1.8,.001],front:[0,.20,1.6],bottom:[-.8,-.70,1.0]};
+ camera.position.set(...views[which]);controls.target.set(0,-.005,0);controls.update();
+ ground.visible=which!=='bottom';
+ document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('selected',b.dataset.view===which));
+}
+frame();
+function resize(){const {width,height}=viewport.getBoundingClientRect();renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();}
+new ResizeObserver(resize).observe(viewport);
+const bytes=Uint8Array.from(atob(MODEL_BASE64),c=>c.charCodeAt(0));
+const loader=new GLTFLoader();
+loader.parse(bytes.buffer,'',gltf=>{
+ model=gltf.scene;scene.add(model);
+ model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;solidMaterials.push([o,o.material]);o.material.map.anisotropy=renderer.capabilities.getMaxAnisotropy();}});
+ status.textContent='Modelo listo · arrastra para girar';status.dataset.ready='true';
+ window.modelReady=true;window.modelStats={meshes:solidMaterials.length,triangles:solidMaterials.reduce((n,[m])=>n+m.geometry.index.count/3,0)};
+},error=>{status.textContent='No se pudo abrir el GLB: '+error.message;status.dataset.error='true';});
+document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>frame(b.dataset.view));
+document.querySelector('#rotate').onclick=e=>{controls.autoRotate=!controls.autoRotate;e.currentTarget.setAttribute('aria-pressed',String(controls.autoRotate));e.currentTarget.textContent=controls.autoRotate?'Pausar giro':'Giro automático';};
+document.querySelector('#wire').onclick=e=>{wire=!wire;solidMaterials.forEach(([m,mat])=>{mat.wireframe=wire;});e.currentTarget.setAttribute('aria-pressed',String(wire));};
+document.querySelector('#dims').onclick=e=>{dimensionsVisible=!dimensionsVisible;dims.visible=dimensionsVisible;document.querySelector('#dimension-note').hidden=!dimensionsVisible;e.currentTarget.setAttribute('aria-pressed',String(dimensionsVisible));};
+document.querySelector('#light').oninput=e=>{renderer.toneMappingExposure=Number(e.target.value);};
+document.querySelector('#background').onclick=e=>{document.body.classList.toggle('dark');e.currentTarget.setAttribute('aria-pressed',String(document.body.classList.contains('dark')));};
+document.querySelector('#download').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([bytes],{type:'model/gltf-binary'}));a.download='lavadero-piedra.glb';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),10000);};
+document.querySelector('#capture').onclick=()=>{renderer.render(scene,camera);const a=document.createElement('a');a.href=canvas.toDataURL('image/png');a.download='lavadero-vista.png';a.click();};
+window.setModelView=frame;
+window.addEventListener('keydown',e=>{if(e.key==='r')frame();});
+renderer.setAnimationLoop(()=>{controls.update();ground.visible=camera.position.y>-.085;renderer.render(scene,camera);});
